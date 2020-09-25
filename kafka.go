@@ -2,7 +2,6 @@ package goo_mq
 
 import (
 	"context"
-	"log"
 	"sync"
 )
 
@@ -14,7 +13,6 @@ type Kafka struct {
 }
 
 func (k *Kafka) Init() {
-	log.Println("[kafka-init]")
 }
 
 func (k *Kafka) Producer() iProducer {

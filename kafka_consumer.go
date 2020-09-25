@@ -3,7 +3,7 @@ package goo_mq
 import (
 	"fmt"
 	"github.com/Shopify/sarama"
-	"log"
+	"github.com/liqiongtao/goo"
 	"sync"
 )
 
@@ -20,32 +20,31 @@ func (*KafkaConsumer) config() *sarama.Config {
 }
 
 func (c *KafkaConsumer) Init() {
-	log.Println("[kafka-consumer-init]")
 }
 
 func (c *KafkaConsumer) Consume(topic string, handler HandlerFunc) error {
 	consumer, err := sarama.NewConsumer(c.Addrs, c.config())
 	if err != nil {
-		log.Println("[kafka-consumer-error]", err.Error())
+		goo.Log.Error("[kafka-consumer]", err.Error())
 		panic(err.Error())
 	}
 	defer consumer.Close()
 
 	partitions, err := consumer.Partitions(topic)
 	if err != nil {
-		log.Println("[kafka-consumer-error]", err.Error())
+		goo.Log.Error("[kafka-consumer]", err.Error())
 		return err
 	}
 
 	for _, partition := range partitions {
 		pc, err := consumer.ConsumePartition(topic, partition, sarama.OffsetNewest)
 		if err != nil {
-			log.Println("[kafka-consumer-error]", err.Error())
+			goo.Log.Error("[kafka-consumer]", err.Error())
 			continue
 		}
 
 		c.wg.Add(1)
-		go c.message(pc, handler)
+		goo.AsyncFunc(c.message(pc, handler))
 	}
 
 	c.wg.Wait()
@@ -53,23 +52,25 @@ func (c *KafkaConsumer) Consume(topic string, handler HandlerFunc) error {
 	return nil
 }
 
-func (c *KafkaConsumer) message(pc sarama.PartitionConsumer, handler HandlerFunc) {
-	defer c.wg.Done()
-	defer pc.Close()
+func (c *KafkaConsumer) message(pc sarama.PartitionConsumer, handler HandlerFunc) func() {
+	return func() {
+		defer c.wg.Done()
+		defer pc.Close()
 
-	for {
-		select {
-		case msg := <-pc.Messages():
-			handler(msg.Value)
-			log.Println("[kafka-consume-success]",
-				fmt.Sprintf("partitions=%d topic=%s offset=%d key=%s value=%s",
-					msg.Partition, msg.Topic, msg.Offset, string(msg.Key), string(msg.Value)))
+		for {
+			select {
+			case msg := <-pc.Messages():
+				handler(msg.Value)
+				goo.Log.Debug("[kafka-consume]",
+					fmt.Sprintf("partitions=%d topic=%s offset=%d key=%s value=%s",
+						msg.Partition, msg.Topic, msg.Offset, string(msg.Key), string(msg.Value)))
 
-		case err := <-pc.Errors():
-			log.Println("[kafka-consumer-error]", err.Error())
+			case err := <-pc.Errors():
+				goo.Log.Error("[kafka-consumer]", err.Error())
 
-		case <-c.Context.Done():
-			return
+			case <-c.Context.Done():
+				return
+			}
 		}
 	}
 }

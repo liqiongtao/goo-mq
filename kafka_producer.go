@@ -3,7 +3,7 @@ package goo_mq
 import (
 	"fmt"
 	"github.com/Shopify/sarama"
-	"log"
+	"github.com/liqiongtao/goo"
 	"time"
 )
 
@@ -24,11 +24,9 @@ func (*KafkaProducer) config() *sarama.Config {
 }
 
 func (p *KafkaProducer) Init() {
-	log.Println("[kafka-producer-init]")
-
 	producer, err := sarama.NewAsyncProducer(p.Addrs, p.config())
 	if err != nil {
-		log.Println("[kafka-producer-error]", err.Error())
+		goo.Log.Error("[kafka-producer]", err.Error())
 		panic(err.Error())
 	}
 
@@ -36,12 +34,12 @@ func (p *KafkaProducer) Init() {
 		for {
 			select {
 			case suc := <-producer.Successes():
-				log.Println("[kafka-producer-success]",
+				goo.Log.Debug("[kafka-producer]",
 					fmt.Sprintf("partitions=%d topic=%s offset=%d value=%s",
 						suc.Partition, suc.Topic, suc.Offset, suc.Value))
 
 			case err := <-producer.Errors():
-				log.Println("[kafka-producer-error]", err.Error())
+				goo.Log.Error("[kafka-producer]", err.Error())
 
 			case <-p.Context.Done():
 				return

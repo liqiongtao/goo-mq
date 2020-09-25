@@ -3,7 +3,7 @@ package goo_mq
 import (
 	"fmt"
 	"github.com/Shopify/sarama"
-	"log"
+	"github.com/liqiongtao/goo"
 )
 
 type KafkaConsumerGroup struct {
@@ -20,13 +20,12 @@ func (*KafkaConsumerGroup) config() *sarama.Config {
 }
 
 func (cg *KafkaConsumerGroup) Init() {
-	log.Println("[kafka-consumer-group-init]")
 }
 
 func (cg *KafkaConsumerGroup) Consume(topics []string, handler HandlerFunc) error {
 	c, err := sarama.NewConsumerGroup(cg.Addrs, cg.GroupId, cg.config())
 	if err != nil {
-		log.Println("[kafka-consumer-group-error]", err.Error())
+		goo.Log.Error("[kafka-consumer-group]", err.Error())
 		return err
 	}
 	defer c.Close()
@@ -35,7 +34,7 @@ func (cg *KafkaConsumerGroup) Consume(topics []string, handler HandlerFunc) erro
 
 	for {
 		if err := c.Consume(cg.Context, topics, cg); err != nil {
-			log.Println("[kafka-consumer-group-error]", err.Error())
+			goo.Log.Error("[kafka-consumer-group]", err.Error())
 			continue
 		}
 		if err := cg.Context.Err(); err != nil {
@@ -67,7 +66,7 @@ func (cg *KafkaConsumerGroup) ConsumeClaim(sess sarama.ConsumerGroupSession, cla
 		// 更新位移
 		sess.MarkMessage(msg, "")
 
-		log.Println("[kafka-consumer-group-success]",
+		goo.Log.Debug("[kafka-consumer-group]",
 			fmt.Sprintf("partitions=%d topic=%s offset=%d key=%s groupid=%s value=%s",
 				msg.Partition, msg.Topic, msg.Offset-1, string(msg.Key), cg.GroupId, string(msg.Value)))
 	}
